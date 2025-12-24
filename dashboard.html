@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent-blue: #00d2ff;
+            --accent-purple: #928dab;
+            --accent-red: #ff4b4b;
+            --accent-green: #00ff88;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); /* Deep Space Gradient */
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- LAYOUT --- */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 25px;
+            height: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* --- GLASSMOPHISM PANELS --- */
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h2 {
+            font-size: 1.4rem;
+            margin-top: 0;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 15px;
+        }
+
+        /* --- INPUTS --- */
+        .task-input {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            outline: none;
+            transition: 0.3s;
+        }
+        input:focus { border-color: var(--accent-blue); background: rgba(255, 255, 255, 0.1); }
+        
+        /* Modern Button */
+        button.add-btn {
+            width: 100%;
+            background: linear-gradient(45deg, var(--accent-blue), #3a7bd5);
+            border: none;
+            padding: 10px;
+            color: white;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button.add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 210, 255, 0.4);
+        }
+
+        /* --- LISTS --- */
+        .task-list { list-style: none; padding: 0; margin: 0; }
+        .task-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid transparent;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            position: relative;
+            transition: 0.3s;
+        }
+        .task-item:hover { background: rgba(255, 255, 255, 0.08); transform: translateX(5px); }
+        .task-item.assignment { border-color: var(--accent-red); }
+        .task-item.quiz { border-color: var(--accent-green); }
+
+        .delete-btn {
+            position: absolute; top: 8px; right: 8px;
+            background: none; border: none; color: #555;
+            font-size: 1.2rem; cursor: pointer; transition: 0.2s;
+        }
+        .delete-btn:hover { color: var(--accent-red); }
+
+        /* --- CENTER TIMETABLE CARDS --- */
+        .date-header { text-align: center; margin-bottom: 20px; }
+        .date-header h1 { font-size: 2.5rem; margin: 0; background: -webkit-linear-gradient(#eee, #999); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .date-header span { color: var(--accent-blue); font-weight: 600; }
+
+        .class-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: 0.3s;
+            overflow: hidden;
+        }
+        /* Glow effect on hover */
+        .class-card:hover {
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.1);
+            border-color: rgba(0, 210, 255, 0.3);
+        }
+        .class-card::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+            background: var(--accent-blue);
+        }
+
+        .time-slot { color: var(--accent-blue); font-weight: 600; font-size: 0.9rem; letter-spacing: 1px; }
+        .subject-name { font-size: 1.3rem; font-weight: 600; margin: 5px 0; color: #fff; }
+        .details-row { display: flex; justify-content: space-between; align-items: center; margin-top: 5px; color: var(--text-muted); font-size: 0.9rem; }
+        .room-badge { background: rgba(255, 255, 255, 0.1); padding: 2px 8px; border-radius: 4px; color: #fff; }
+
+        /* --- NOTES --- */
+        .note-toggle { 
+            background: none; border: none; color: var(--text-muted); 
+            cursor: pointer; font-size: 0.8rem; margin-top: 15px; 
+            display: flex; align-items: center; gap: 5px; opacity: 0.7; transition: 0.3s;
+        }
+        .note-toggle:hover { opacity: 1; color: var(--accent-blue); }
+        
+        .note-box { display: none; margin-top: 10px; animation: fadeIn 0.3s; }
+        .note-box textarea {
+            width: 100%; height: 80px; background: rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border); color: #fff;
+            border-radius: 8px; padding: 10px; font-family: inherit; resize: vertical;
+        }
+        .save-note-btn { 
+            background: var(--accent-green); color: #000; padding: 5px 15px; 
+            border: none; border-radius: 4px; margin-top: 8px; cursor: pointer; float: right; font-weight: bold;
+        }
+
+        /* --- HISTORY BUTTON --- */
+        .history-btn {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(255,255,255,0.1); color: white;
+            border: 1px solid var(--glass-border);
+            border-radius: 50%; width: 40px; height: 40px;
+            cursor: pointer; font-size: 1.2rem; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .history-btn:hover { background: var(--accent-blue); transform: rotate(15deg); }
+
+        /* --- MODAL --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; backdrop-filter: blur(5px); justify-content: center; align-items: center; }
+        .modal-content { background: #1a1a1a; color: white; padding: 30px; border-radius: 20px; width: 400px; max-height: 80vh; overflow-y: auto; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 20px; text-align: center; }
+        .day { padding: 10px; border-radius: 8px; cursor: pointer; background: #222; transition: 0.2s; }
+        .day:hover { background: var(--accent-blue); color: #000; }
+        .day.selected { background: var(--accent-blue); color: #000; font-weight: bold; }
+        .day.today { border: 2px solid var(--accent-blue); }
+        .day.empty { background: transparent; cursor: default; }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; height: auto; } body { height: auto; } }
+    </style>
+</head>
+<body>
+
+<div class="main-layout">
+    
+    <div class="panel">
+        <h2>Assignments</h2>
+        <div class="task-input">
+            <input type="text" id="assign-subject" placeholder="Subject Name">
+            <input type="text" id="assign-desc" placeholder="Details (e.g., Chapter 1)">
+            <input type="date" id="assign-date" style="color-scheme: dark;">
+            <button class="add-btn" onclick="addTask('assignment')">Add Assignment</button>
+        </div>
+        <ul id="assignment-list" class="task-list"></ul>
+    </div>
+
+    <div class="panel center-panel" style="position: relative;">
+        <button class="history-btn" onclick="openHistory()" title="View Past Notes">📅</button>
+        
+        <div class="date-header">
+            <h1 id="day-title">Loading...</h1>
+            <span id="date-display">...</span>
+        </div>
+
+        <div id="schedule-list" style="width: 100%;">
+            </div>
+    </div>
+
+    <div class="panel">
+        <h2>Quizzes</h2>
+        <div class="task-input">
+            <input type="text" id="quiz-subject" placeholder="Subject Name">
+            <input type="text" id="quiz-topic" placeholder="Topic">
+            <input type="date" id="quiz-date" style="color-scheme: dark;">
+            <button class="add-btn" onclick="addTask('quiz')">Add Quiz</button>
+        </div>
+        <ul id="quiz-list" class="task-list"></ul>
+    </div>
+
+</div>
+
+<div id="historyModal" class="modal">
+    <div class="modal-content">
+        <button onclick="closeHistory()" style="float:right; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+        <h3 id="cal-title" style="margin-top:0; color:var(--accent-blue);">Calendar</h3>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div id="history-details" style="margin-top: 25px; border-top: 1px solid #333; padding-top: 15px;"></div>
+    </div>
+</div>
+
+<script>
+    // --- DATA & LOGIC (Kept same, just styled) ---
+    const scheduleData = {
+        "Monday": [
+            { time: "08:00 - 08:50", code: "MATH1341", name: "Calculus & Diff Eq", faculty: "Bikshan Chakraborty", room: "ICT / 119" },
+            { time: "09:00 - 09:50", code: "24CSEN2011", name: "Operating Systems", faculty: "Godi Appa Rao", room: "ICT / 627" },
+            { time: "10:00 - 10:50", code: "24CSEN3321", name: "Critical Thinking", faculty: "Manohar M. P.", room: "ICT / 324" },
+            { time: "11:00 - 11:50", code: "24CSEN3001", name: "Algorithms (DAA)", faculty: "Sangeeta V.", room: "ICT / 119" },
+            { time: "14:00 - 15:50", code: "24CSEN2031P", name: "DBMS Lab", faculty: "Naresh Kumar K E", room: "ICT / 219" }
+        ],
+        "Tuesday": [
+            { time: "08:00 - 08:50", code: "24CSEN3321", name: "Critical Thinking", faculty: "Manohar M. P.", room: "ICT / 527" },
+            { time: "09:00 - 09:50", code: "24CSEN2011", name: "Operating Systems", faculty: "Godi Appa Rao", room: "ICT / 527" },
+            { time: "10:00 - 10:50", code: "HSMCH102", name: "UHV", faculty: "Kothapalli Arun", room: "ICT / 119" },
+            { time: "11:00 - 11:50", code: "MATH1341", name: "Calculus & Diff Eq", faculty: "Bikshan Chakraborty", room: "ICT / 119" },
+            { time: "13:00 - 13:50", code: "EECE3621", name: "EV Technology", faculty: "Praveen Mande", room: "ICT / 428" }
+        ],
+        "Wednesday": [
+            { time: "08:00 - 09:50", code: "GCGC1011", name: "Aptitude & Comm", faculty: "Faculty5", room: "ICT / 305" },
+            { time: "10:00 - 10:50", code: "24CSEN2031", name: "DBMS", faculty: "Naresh Kumar K E", room: "ICT / 119" },
+            { time: "11:00 - 11:50", code: "24CSEN3001", name: "Algorithms (DAA)", faculty: "Sangeeta V.", room: "ICT / 119" }
+        ],
+        "Thursday": [
+            { time: "08:00 - 09:50", code: "24CSEN3001P", name: "DAA Lab", faculty: "Sangeeta V.", room: "ICT / 209" },
+            { time: "10:00 - 10:50", code: "24CSEN2011", name: "Operating Systems", faculty: "Godi Appa Rao", room: "ICT / 527" },
+            { time: "11:00 - 11:50", code: "24CSEN2031", name: "DBMS", faculty: "Naresh Kumar K E", room: "ICT / 119" },
+            { time: "13:00 - 13:50", code: "EECE3621", name: "EV Technology", faculty: "Praveen Mande", room: "ICT / 428" },
+            { time: "14:00 - 14:50", code: "MATH1341", name: "Calculus", faculty: "Bikshan C.", room: "ICT / 119" },
+            { time: "15:00 - 15:50", code: "HSMCH102", name: "UHV", faculty: "Kothapalli A.", room: "ICT / 119" }
+        ],
+        "Friday": [
+            { time: "08:00 - 08:50", code: "24CSEN2031", name: "DBMS", faculty: "Naresh Kumar K E", room: "ICT / 119" },
+            { time: "09:00 - 09:50", code: "HSMCH102", name: "UHV", faculty: "Kothapalli A.", room: "ICT / 119" },
+            { time: "10:00 - 11:50", code: "24CSEN2011P", name: "OS Lab", faculty: "Godi Appa Rao", room: "ICT / 220" },
+            { time: "13:00 - 13:50", code: "EECE3621", name: "EV Technology", faculty: "Praveen Mande", room: "ICT / 428" },
+            { time: "14:00 - 14:50", code: "24CSEN3001", name: "Algorithms (DAA)", faculty: "Sangeeta V.", room: "ICT / 119" },
+            { time: "15:00 - 15:50", code: "MATH1341", name: "Calculus", faculty: "Bikshan C.", room: "ICT / 119" }
+        ],
+        "Saturday": [], "Sunday": []
+    };
+
+    let allNotes = {}; 
+
+    async function init() {
+        try {
+            const data = await fetch('/api/get_data').then(r => r.json());
+            renderTasks(data.tasks);
+            allNotes = data.notes || {};
+        } catch(e) {
+            console.log("Offline mode or Server error");
+        }
+        renderToday();
+    }
+
+    function renderToday() {
+        const now = new Date();
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayName = days[now.getDay()];
+        const dateStr = now.toISOString().split('T')[0];
+
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('date-display').innerText = now.toLocaleDateString(undefined, options);
+        document.getElementById('day-title').innerText = "Today's Plan";
+
+        const container = document.getElementById('schedule-list');
+        const classes = scheduleData[dayName] || [];
+
+        if (classes.length === 0) container.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.5); margin-top:50px; font-size:1.2rem;">No classes today! 🎉</div>';
+        else {
+            container.innerHTML = classes.map((item, index) => {
+                const key = `${dateStr}_${item.code}_${index}`;
+                const existingNote = allNotes[key] || "";
+                return `
+                <div class="class-card">
+                    <div class="time-slot">${item.time}</div>
+                    <h2 class="subject-name">${item.name}</h2>
+                    <div class="details-row">
+                        <span>👨‍🏫 ${item.faculty}</span>
+                        <span class="room-badge">${item.room}</span>
+                    </div>
+                    
+                    <button class="note-toggle" onclick="toggleNote('${key}')">
+                        <span>✏️ Notes</span>
+                    </button>
+                    <div id="box_${key}" class="note-box">
+                        <textarea id="txt_${key}" placeholder="Write important points here...">${existingNote}</textarea>
+                        <button class="save-note-btn" onclick="saveNote('${key}')">Save</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    async function addTask(type) {
+        const prefix = type === 'assignment' ? 'assign' : 'quiz';
+        const subject = document.getElementById(prefix + '-subject').value;
+        const title = document.getElementById(prefix + (type==='assignment' ? '-desc' : '-topic')).value;
+        const date = document.getElementById(prefix + '-date').value;
+
+        if (!subject || !title || !date) return alert("Please fill all fields");
+
+        await fetch('/api/save_task', {
+            method: 'POST', body: JSON.stringify({ id: Date.now(), type, subject, title, date })
+        });
+        window.location.reload(); 
+    }
+
+    function renderTasks(tasks) {
+        if(!tasks) return;
+        tasks.sort((a,b) => new Date(a.date) - new Date(b.date));
+        tasks.forEach(t => {
+            const listId = t.type === 'assignment' ? 'assignment-list' : 'quiz-list';
+            document.getElementById(listId).innerHTML += `
+                <li class="task-item ${t.type}">
+                    <button class="delete-btn" onclick="deleteTask(${t.id})">&times;</button>
+                    <strong style="color:white; font-size:1.1rem;">${t.subject}</strong>
+                    <div style="color:rgba(255,255,255,0.7); margin:4px 0;">${t.title}</div>
+                    <div style="font-size:0.8rem; color:${t.type === 'assignment' ? 'var(--accent-red)' : 'var(--accent-green)'};">
+                        📅 Due: ${t.date}
+                    </div>
+                </li>`;
+        });
+    }
+
+    async function deleteTask(id) {
+        await fetch('/api/delete_task', { method: 'POST', body: JSON.stringify({ id }) });
+        window.location.reload();
+    }
+
+    async function saveNote(key) {
+        const note = document.getElementById(`txt_${key}`).value;
+        await fetch('/api/save_note', { method: 'POST', body: JSON.stringify({ key, note }) });
+        // Visual feedback
+        const btn = document.querySelector(`#box_${key} .save-note-btn`);
+        const originalText = btn.innerText;
+        btn.innerText = "Saved!";
+        btn.style.background = "#fff";
+        setTimeout(() => { 
+            btn.innerText = originalText; 
+            btn.style.background = "var(--accent-green)";
+            toggleNote(key);
+        }, 1000);
+        init(); 
+    }
+
+    function toggleNote(key) {
+        const box = document.getElementById(`box_${key}`);
+        box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function openHistory() {
+        document.getElementById('historyModal').style.display = 'flex';
+        renderCalendar(new Date().getFullYear(), new Date().getMonth());
+    }
+    function closeHistory() { document.getElementById('historyModal').style.display = 'none'; }
+
+    function renderCalendar(year, month) {
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        document.getElementById('cal-title').innerText = `${monthNames[month]} ${year}`;
+        const grid = document.getElementById('calendar-grid');
+        grid.innerHTML = '<div style="color:#777">S</div><div style="color:#777">M</div><div style="color:#777">T</div><div style="color:#777">W</div><div style="color:#777">T</div><div style="color:#777">F</div><div style="color:#777">S</div>';
+        
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for(let i=0; i<firstDay; i++) grid.innerHTML += `<div class="day empty"></div>`;
+        for(let i=1; i<=daysInMonth; i++) {
+            const d = document.createElement('div');
+            d.className = 'day'; d.innerText = i;
+            if(i === new Date().getDate() && month === new Date().getMonth()) d.classList.add('today');
+            d.onclick = () => showHistory(year, month, i);
+            grid.appendChild(d);
+        }
+    }
+
+    function showHistory(y, m, d) {
+        const dateObj = new Date(y, m, d);
+        const dateStr = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayName = days[dateObj.getDay()];
+        
+        const container = document.getElementById('history-details');
+        container.innerHTML = `<h4 style="color:var(--accent-blue); margin-bottom:10px;">${dayName}, ${dateStr}</h4>`;
+        
+        const classes = scheduleData[dayName] || [];
+        if(classes.length === 0) {
+            container.innerHTML += "<p style='color:#777'>No classes scheduled.</p>";
+            return;
+        }
+
+        let foundNote = false;
+        classes.forEach((item, index) => {
+            const key = `${dateStr}_${item.code}_${index}`;
+            const note = allNotes[key];
+            if(note) {
+                foundNote = true;
+                container.innerHTML += `<div style="background:rgba(255,255,255,0.05); padding:10px; margin-bottom:8px; border-radius:6px; border-left:3px solid var(--accent-purple);">
+                    <strong style="color:white;">${item.name}</strong>
+                    <div style="color:#ccc; margin-top:5px; font-style:italic;">"${note}"</div>
+                </div>`;
+            }
+        });
+        if(!foundNote) container.innerHTML += "<p style='color:#555; font-size:0.9rem;'>No notes recorded for this date.</p>";
+    }
+
+    init();
+</script>
+</body>
+</html>
