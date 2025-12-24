@@ -1,1 +1,1 @@
-# No external libraries needed for standard library usage
+pymongo[srv]
