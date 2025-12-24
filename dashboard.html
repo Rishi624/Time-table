@@ -39,10 +39,10 @@
         /* --- LAYOUT --- */
         .main-layout {
             display: grid;
-            grid-template-columns: 300px 1fr 300px;
+            grid-template-columns: 320px 1fr 320px; /* Widened side panels slightly */
             gap: 25px;
-            height: 100%;
-            max-width: 1600px;
+            height: calc(100vh - 40px); /* Full height minus padding */
+            max-width: 1800px;
             margin: 0 auto;
             width: 100%;
         }
@@ -58,7 +58,7 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
             display: flex;
             flex-direction: column;
-            overflow-y: auto;
+            overflow: hidden; /* Contains scrollable areas */
             animation: fadeIn 0.8s ease-out;
         }
 
@@ -71,6 +71,18 @@
             letter-spacing: 2px;
             border-bottom: 1px solid var(--glass-border);
             padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h3.list-header {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin: 20px 0 10px 0;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px;
         }
 
         /* --- INPUTS --- */
@@ -78,7 +90,7 @@
             background: rgba(0, 0, 0, 0.2);
             padding: 15px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            flex-shrink: 0; /* Prevents input box from shrinking */
         }
 
         input {
@@ -92,10 +104,10 @@
             box-sizing: border-box;
             outline: none;
             transition: 0.3s;
+            font-family: inherit;
         }
         input:focus { border-color: var(--accent-blue); background: rgba(255, 255, 255, 0.1); }
         
-        /* Modern Button */
         button.add-btn {
             width: 100%;
             background: linear-gradient(45deg, var(--accent-blue), #3a7bd5);
@@ -112,7 +124,20 @@
             box-shadow: 0 5px 15px rgba(0, 210, 255, 0.4);
         }
 
-        /* --- LISTS --- */
+        /* --- LISTS (Scrollable) --- */
+        .task-scroll-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding-right: 5px; /* Space for scrollbar */
+        }
+        
+        /* Custom Scrollbar */
+        .task-scroll-area::-webkit-scrollbar { width: 6px; }
+        .task-scroll-area::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .task-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .task-scroll-area::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
         .task-list { list-style: none; padding: 0; margin: 0; }
         .task-item {
             background: rgba(255, 255, 255, 0.03);
@@ -135,7 +160,15 @@
         .delete-btn:hover { color: var(--accent-red); }
 
         /* --- CENTER TIMETABLE CARDS --- */
-        .date-header { text-align: center; margin-bottom: 20px; }
+        .center-scroll-area {
+            overflow-y: auto;
+            flex-grow: 1;
+            padding-right: 5px;
+        }
+        .center-scroll-area::-webkit-scrollbar { width: 6px; }
+        .center-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .date-header { text-align: center; margin-bottom: 20px; flex-shrink: 0; }
         .date-header h1 { font-size: 2.5rem; margin: 0; background: -webkit-linear-gradient(#eee, #999); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .date-header span { color: var(--accent-blue); font-weight: 600; }
 
@@ -149,7 +182,6 @@
             transition: 0.3s;
             overflow: hidden;
         }
-        /* Glow effect on hover */
         .class-card:hover {
             box-shadow: 0 0 20px rgba(0, 210, 255, 0.1);
             border-color: rgba(0, 210, 255, 0.3);
@@ -190,7 +222,7 @@
             border: 1px solid var(--glass-border);
             border-radius: 50%; width: 40px; height: 40px;
             cursor: pointer; font-size: 1.2rem; transition: 0.3s;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; align-items: center; justify-content: center; z-index: 10;
         }
         .history-btn:hover { background: var(--accent-blue); transform: rotate(15deg); }
 
@@ -204,7 +236,6 @@
         .day.today { border: 2px solid var(--accent-blue); }
         .day.empty { background: transparent; cursor: default; }
 
-        /* --- RESPONSIVE --- */
         @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; height: auto; } body { height: auto; } }
     </style>
 </head>
@@ -220,7 +251,11 @@
             <input type="date" id="assign-date" style="color-scheme: dark;">
             <button class="add-btn" onclick="addTask('assignment')">Add Assignment</button>
         </div>
-        <ul id="assignment-list" class="task-list"></ul>
+        
+        <h3 class="list-header">Upcoming</h3>
+        <div class="task-scroll-area">
+            <ul id="assignment-list" class="task-list"></ul>
+        </div>
     </div>
 
     <div class="panel center-panel" style="position: relative;">
@@ -231,7 +266,7 @@
             <span id="date-display">...</span>
         </div>
 
-        <div id="schedule-list" style="width: 100%;">
+        <div id="schedule-list" class="center-scroll-area" style="width: 100%;">
             </div>
     </div>
 
@@ -243,7 +278,11 @@
             <input type="date" id="quiz-date" style="color-scheme: dark;">
             <button class="add-btn" onclick="addTask('quiz')">Add Quiz</button>
         </div>
-        <ul id="quiz-list" class="task-list"></ul>
+
+        <h3 class="list-header">Upcoming</h3>
+        <div class="task-scroll-area">
+            <ul id="quiz-list" class="task-list"></ul>
+        </div>
     </div>
 
 </div>
@@ -258,7 +297,7 @@
 </div>
 
 <script>
-    // --- DATA & LOGIC (Kept same, just styled) ---
+    // --- DATA & LOGIC ---
     const scheduleData = {
         "Monday": [
             { time: "08:00 - 08:50", code: "MATH1341", name: "Calculus & Diff Eq", faculty: "Bikshan Chakraborty", room: "ICT / 119" },
