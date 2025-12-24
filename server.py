@@ -10,17 +10,31 @@ from email.mime.text import MIMEText
 from datetime import date, timedelta
 import os
 import sys
+import pymongo
 
 # ===========================
 # 1. CONFIGURATION
 # ===========================
-# Force output to print immediately (fixes missing logs on Render)
 sys.stdout.reconfigure(line_buffering=True)
-
-# Render gives us a specific PORT. We must use it.
-# If running locally, we default to 8080.
 PORT = int(os.environ.get("PORT", 8080))
-DATA_FILE = "student_data.json"
+
+# --- DATABASE CONNECTION ---
+MONGO_URI = os.environ.get("MONGO_URI")
+client = None
+db = None
+
+if MONGO_URI:
+    try:
+        client = pymongo.MongoClient(MONGO_URI)
+        db = client.student_dashboard
+        # Test the connection immediately
+        client.admin.command('ping')
+        print("✅ Connected to MongoDB Atlas!")
+    except Exception as e:
+        print(f"❌ MongoDB Connection Failed: {e}")
+        db = None # Ensure db remains None if connection fails
+else:
+    print("⚠️ WARNING: MONGO_URI not found.")
 
 # --- SECURE PASSWORD LOADING ---
 try:
@@ -28,24 +42,17 @@ try:
     MY_EMAIL = config.EMAIL
     MY_PASSWORD = config.PASSWORD
     TO_EMAIL = config.TO_EMAIL
-    print("✅ Loaded credentials from local config.py")
 except ImportError:
     MY_EMAIL = os.environ.get("MY_EMAIL")
     MY_PASSWORD = os.environ.get("MY_PASSWORD")
     TO_EMAIL = os.environ.get("TO_EMAIL")
-    if MY_EMAIL:
-        print("✅ Loaded credentials from Environment Variables")
-    else:
-        print("⚠️ WARNING: No credentials found! Email features will fail.")
 
 # ===========================
 # 2. EMAIL BOT
 # ===========================
 def send_email(subject, body):
     if not MY_EMAIL or not MY_PASSWORD:
-        print("❌ Cannot send email: Credentials missing.")
         return
-
     try:
         msg = MIMEMultipart()
         msg['From'] = MY_EMAIL
@@ -63,29 +70,26 @@ def send_email(subject, body):
         print(f"❌ Email Error: {e}")
 
 def email_bot_loop():
-    print("--- 🤖 Email Bot Started (Background) ---")
+    print("--- 🤖 Email Bot Started ---")
     while True:
         try:
             now = datetime.datetime.now()
             # Check at 5:00 PM (17:00) OR 9:00 PM (21:00)
             if (now.hour == 17 or now.hour == 21) and now.minute == 0:
-                print(f"⏰ Checking deadlines...")
                 check_deadlines()
                 time.sleep(65)
             time.sleep(30)
         except Exception as e:
-            print(f"⚠️ Bot Loop Error: {e}")
+            print(f"⚠️ Bot Error: {e}")
             time.sleep(60)
 
 def check_deadlines():
-    if not os.path.exists(DATA_FILE): return
+    # FIXED: Explicit check against None
+    if db is None: return
     try:
-        with open(DATA_FILE, 'r') as f:
-            data = json.load(f)
-        
-        tasks = data.get("tasks", [])
+        tasks_collection = db.tasks
         tomorrow_str = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
-        due_tomorrow = [t for t in tasks if t['date'] == tomorrow_str]
+        due_tomorrow = list(tasks_collection.find({"date": tomorrow_str}))
 
         if due_tomorrow:
             subject = f"🔔 Reminder: {len(due_tomorrow)} Tasks Due Tomorrow!"
@@ -109,9 +113,18 @@ class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            if os.path.exists(DATA_FILE):
-                with open(DATA_FILE, 'r') as f:
-                    self.wfile.write(f.read().encode())
+            
+            # FIXED: Explicit check against None
+            if db is not None:
+                try:
+                    tasks = list(db.tasks.find({}, {"_id": 0}))
+                    notes_cursor = db.notes.find({}, {"_id": 0})
+                    notes = {item["key"]: item["note"] for item in notes_cursor}
+                    response_data = {"tasks": tasks, "notes": notes}
+                    self.wfile.write(json.dumps(response_data).encode())
+                except Exception as e:
+                    print(f"❌ Database Read Error: {e}")
+                    self.wfile.write(b'{"tasks":[], "notes":{}}')
             else:
                 self.wfile.write(b'{"tasks":[], "notes":{}}')
             return
@@ -124,26 +137,30 @@ class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             request_data = json.loads(post_data.decode('utf-8'))
 
-            data = {"tasks": [], "notes": {}}
-            if os.path.exists(DATA_FILE):
-                with open(DATA_FILE, 'r') as f:
-                    try: data = json.load(f)
-                    except: pass
+            # FIXED: Explicit check against None
+            if db is None:
+                print("❌ No Database Connection (db is None)")
+                self.send_response(500)
+                self.end_headers()
+                return
 
             if self.path == '/api/save_task':
-                data["tasks"].append(request_data)
+                db.tasks.insert_one(request_data)
+                
             elif self.path == '/api/delete_task':
-                data["tasks"] = [t for t in data["tasks"] if t['id'] != request_data['id']]
+                db.tasks.delete_one({"id": request_data['id']})
+                
             elif self.path == '/api/save_note':
                 key = request_data['key']
                 note = request_data['note']
                 if note.strip() == "":
-                    if key in data["notes"]: del data["notes"][key]
+                    db.notes.delete_one({"key": key})
                 else:
-                    data["notes"][key] = note
-
-            with open(DATA_FILE, 'w') as f:
-                json.dump(data, f, indent=4)
+                    db.notes.update_one(
+                        {"key": key}, 
+                        {"$set": {"note": note, "key": key}}, 
+                        upsert=True
+                    )
 
             self.send_response(200)
             self.end_headers()
@@ -154,19 +171,15 @@ class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
 if __name__ == "__main__":
-    # Start Email Bot
     bot_thread = threading.Thread(target=email_bot_loop, daemon=True)
     bot_thread.start()
 
-    # Start Web Server with robust binding
-    print(f"🚀 Attempting to start server on 0.0.0.0:{PORT} ...")
+    print(f"🚀 Starting server on 0.0.0.0:{PORT} ...")
     try:
-        # Binding to "0.0.0.0" is crucial for Render
         server = socketserver.TCPServer(("0.0.0.0", PORT), MyRequestHandler)
-        print("✅ Server started successfully!")
+        print("✅ Server started!")
         server.serve_forever()
     except Exception as e:
-        print(f"🔥 FATAL ERROR: Could not start server: {e}")
-        # Keep script alive briefly to ensure logs are flushed to Render
+        print(f"🔥 FATAL ERROR: {e}")
         time.sleep(5)
         sys.exit(1)
