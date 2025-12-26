@@ -76,11 +76,13 @@ def email_bot_loop():
     while True:
         try:
             now = datetime.datetime.now()
-            # Check at 5:00 PM (17:00) OR 9:00 PM (21:00)
-            if (now.hour == 17 or now.hour == 21) and now.minute == 0:
+            # Render Server Time (UTC) is 5.5 hours behind India.
+            # 11:30 UTC = 5:00 PM IST
+            # 15:30 UTC = 9:00 PM IST
+            if (now.hour == 11 or now.hour == 15) and now.minute == 30:
                 check_deadlines()
-                # Sleep 65 seconds to ensure we don't double-send in the same minute
-                time.sleep(65)
+                time.sleep(65) # Wait >1 min so we don't double send
+            
             time.sleep(30)
         except Exception as e:
             print(f"⚠️ Bot Error: {e}")
