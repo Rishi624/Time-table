@@ -15,6 +15,7 @@ import pymongo
 # ===========================
 # 1. CONFIGURATION
 # ===========================
+# Force logs to appear immediately in Render
 sys.stdout.reconfigure(line_buffering=True)
 PORT = int(os.environ.get("PORT", 8080))
 
@@ -32,7 +33,7 @@ if MONGO_URI:
         print("✅ Connected to MongoDB Atlas!")
     except Exception as e:
         print(f"❌ MongoDB Connection Failed: {e}")
-        db = None # Ensure db remains None if connection fails
+        db = None 
 else:
     print("⚠️ WARNING: MONGO_URI not found.")
 
@@ -43,6 +44,7 @@ try:
     MY_PASSWORD = config.PASSWORD
     TO_EMAIL = config.TO_EMAIL
 except ImportError:
+    # If config.py is missing (like on Render), use Environment Variables
     MY_EMAIL = os.environ.get("MY_EMAIL")
     MY_PASSWORD = os.environ.get("MY_PASSWORD")
     TO_EMAIL = os.environ.get("TO_EMAIL")
@@ -77,6 +79,7 @@ def email_bot_loop():
             # Check at 5:00 PM (17:00) OR 9:00 PM (21:00)
             if (now.hour == 17 or now.hour == 21) and now.minute == 0:
                 check_deadlines()
+                # Sleep 65 seconds to ensure we don't double-send in the same minute
                 time.sleep(65)
             time.sleep(30)
         except Exception as e:
@@ -84,7 +87,6 @@ def email_bot_loop():
             time.sleep(60)
 
 def check_deadlines():
-    # FIXED: Explicit check against None
     if db is None: return
     try:
         tasks_collection = db.tasks
@@ -106,20 +108,25 @@ def check_deadlines():
 # ===========================
 class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        # Serve dashboard.html by default
         if self.path == '/':
             self.path = '/dashboard.html'
         
+        # API: Fetch Data
         if self.path == '/api/get_data':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             
-            # FIXED: Explicit check against None
             if db is not None:
                 try:
+                    # Fetch all tasks (exclude MongoDB internal ID)
                     tasks = list(db.tasks.find({}, {"_id": 0}))
+                    
+                    # Fetch all notes and format them
                     notes_cursor = db.notes.find({}, {"_id": 0})
                     notes = {item["key"]: item["note"] for item in notes_cursor}
+                    
                     response_data = {"tasks": tasks, "notes": notes}
                     self.wfile.write(json.dumps(response_data).encode())
                 except Exception as e:
@@ -137,19 +144,27 @@ class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
             post_data = self.rfile.read(content_length)
             request_data = json.loads(post_data.decode('utf-8'))
 
-            # FIXED: Explicit check against None
             if db is None:
-                print("❌ No Database Connection (db is None)")
                 self.send_response(500)
                 self.end_headers()
                 return
 
+            # API: Add Task
             if self.path == '/api/save_task':
                 db.tasks.insert_one(request_data)
                 
+            # API: Delete Task (Used for "Completed" button)
             elif self.path == '/api/delete_task':
                 db.tasks.delete_one({"id": request_data['id']})
+
+            # API: Update Task (Used for "Extend Time" button)
+            elif self.path == '/api/update_task':
+                db.tasks.update_one(
+                    {"id": request_data['id']},
+                    {"$set": {"date": request_data['date']}}
+                )
                 
+            # API: Save Note
             elif self.path == '/api/save_note':
                 key = request_data['key']
                 note = request_data['note']
@@ -171,6 +186,7 @@ class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
 
 if __name__ == "__main__":
+    # Start Email Bot in background thread
     bot_thread = threading.Thread(target=email_bot_loop, daemon=True)
     bot_thread.start()
 
